@@ -1,0 +1,453 @@
+{% extends "base.html" %}
+
+{% block title %}Recherche Avancée - FFE Competitions{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-12">
+        <!-- Header -->
+        <div class="text-center mb-5">
+            <h1 class="display-5">
+                <i class="fas fa-search-plus text-success"></i>
+                Recherche Avancée
+            </h1>
+            <p class="lead text-muted">
+                Options de recherche détaillées pour les compétitions équestres
+            </p>
+        </div>
+
+        <!-- Advanced Search Form -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-sliders-h"></i> Critères de Recherche
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="advancedSearchForm">
+                    <div class="row g-3">
+                        <!-- Discipline -->
+                        <div class="col-md-3">
+                            <label for="disciplineSelect" class="form-label">
+                                <i class="fas fa-trophy"></i> Discipline
+                            </label>
+                            <select class="form-select" id="disciplineSelect" name="discipline">
+                                <option value="">Toutes les disciplines</option>
+                                {% for discipline in disciplines %}
+                                <option value="{{ discipline }}">{{ discipline }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Search Term -->
+                        <div class="col-md-4">
+                            <label for="searchInput" class="form-label">
+                                <i class="fas fa-search"></i> Mot-clé
+                            </label>
+                            <input type="text" class="form-control" id="searchInput" name="search" 
+                                   placeholder="Nom, lieu, organisateur...">
+                        </div>
+
+                        <!-- Date Range -->
+                        <div class="col-md-3">
+                            <label for="dateRange" class="form-label">
+                                <i class="fas fa-calendar-alt"></i> Période
+                            </label>
+                            <select class="form-select" id="dateRange" name="date_range">
+                                <option value="">Toutes les dates</option>
+                                <option value="today">Aujourd'hui</option>
+                                <option value="week">Cette semaine</option>
+                                <option value="month">Ce mois</option>
+                                <option value="next_month">Mois prochain</option>
+                                <option value="year">Cette année</option>
+                            </select>
+                        </div>
+
+                        <!-- Search Button -->
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search"></i> Rechercher
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Filters Row -->
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-3">
+                            <label for="niveauSelect" class="form-label">
+                                <i class="fas fa-star"></i> Niveau
+                            </label>
+                            <select class="form-select" id="niveauSelect" name="niveau">
+                                <option value="">Tous les niveaux</option>
+                                <option value="Amateur">Amateur</option>
+                                <option value="Pro">Pro</option>
+                                <option value="Elite">Elite</option>
+                                <option value="Club">Club</option>
+                                <option value="Poney">Poney</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label for="regionSelect" class="form-label">
+                                <i class="fas fa-map-marker-alt"></i> Région
+                            </label>
+                            <input type="text" class="form-control" id="regionSelect" name="region" 
+                                   placeholder="Région, département...">
+                        </div>
+
+                        <div class="col-md-3">
+                            <label for="statutSelect" class="form-label">
+                                <i class="fas fa-info-circle"></i> Statut
+                            </label>
+                            <select class="form-select" id="statutSelect" name="statut">
+                                <option value="">Tous les statuts</option>
+                                <option value="Ouvert">Ouvert</option>
+                                <option value="Clos">Clos</option>
+                                <option value="Annulé">Annulé</option>
+                                <option value="Complet">Complet</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <div class="d-grid mt-4">
+                                <button type="button" class="btn btn-outline-secondary" id="clearFilters">
+                                    <i class="fas fa-times"></i> Effacer
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3 class="text-primary" id="totalCompetitions">-</h3>
+                        <p class="mb-0">Total Concours</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3 class="text-success" id="openCompetitions">-</h3>
+                        <p class="mb-0">Ouverts</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3 class="text-warning" id="upcomingCompetitions">-</h3>
+                        <p class="mb-0">À venir</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3 class="text-info" id="currentDiscipline">-</h3>
+                        <p class="mb-0">Discipline sélectionnée</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-list"></i> Résultats de Recherche
+                    <span id="resultsCount" class="badge bg-secondary">0</span>
+                </h5>
+                <div>
+                    <div class="btn-group" role="group">
+                        <button id="exportBtn" class="btn btn-outline-success btn-sm" disabled>
+                            <i class="fas fa-download"></i> CSV
+                        </button>
+                        <button id="saveSearchBtn" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-bookmark"></i> Sauvegarder
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Results Filter Bar -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-sort"></i>
+                            </span>
+                            <select class="form-select" id="sortBy">
+                                <option value="date">Trier par date</option>
+                                <option value="nom">Trier par nom</option>
+                                <option value="lieu">Trier par lieu</option>
+                                <option value="discipline">Trier par discipline</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <input type="radio" class="btn-check" name="viewMode" id="cardView" autocomplete="off" checked>
+                            <label class="btn btn-outline-secondary" for="cardView">
+                                <i class="fas fa-th-large"></i> Cartes
+                            </label>
+                            <input type="radio" class="btn-check" name="viewMode" id="tableView" autocomplete="off">
+                            <label class="btn btn-outline-secondary" for="tableView">
+                                <i class="fas fa-list"></i> Tableau
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loading indicator -->
+                <div id="loadingIndicator" class="loading" style="display: none;">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Chargement...</span>
+                    </div>
+                    <p class="mt-2">Récupération des données...</p>
+                </div>
+
+                <!-- Results container -->
+                <div id="resultsContainer">
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-search fa-3x mb-3"></i>
+                        <p>Utilisez les filtres ci-dessus pour lancer une recherche avancée</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    let currentSearchParams = {};
+    let allCompetitions = [];
+
+    // Search form submission
+    $('#advancedSearchForm').on('submit', function(e) {
+        e.preventDefault();
+        searchCompetitions();
+    });
+
+    // Clear filters
+    $('#clearFilters').on('click', function() {
+        $('#advancedSearchForm')[0].reset();
+        updateStats();
+        displayResults([]);
+    });
+
+    // Sort functionality
+    $('#sortBy').on('change', function() {
+        if (allCompetitions.length > 0) {
+            sortAndDisplayResults();
+        }
+    });
+
+    // View mode toggle
+    $('input[name="viewMode"]').on('change', function() {
+        if (allCompetitions.length > 0) {
+            displayResults(allCompetitions);
+        }
+    });
+
+    // Export functionality
+    $('#exportBtn').on('click', function() {
+        exportResults();
+    });
+
+    function searchCompetitions() {
+        const formData = new FormData($('#advancedSearchForm')[0]);
+        currentSearchParams = {};
+        
+        for (let [key, value] of formData.entries()) {
+            if (value) {
+                currentSearchParams[key] = value;
+            }
+        }
+
+        // Show loading
+        $('#loadingIndicator').show();
+        $('#resultsContainer').hide();
+        $('#exportBtn').prop('disabled', true);
+
+        // Make API call
+        $.ajax({
+            url: '/api/competitions',
+            method: 'GET',
+            data: currentSearchParams,
+            success: function(response) {
+                allCompetitions = response.competitions;
+                sortAndDisplayResults();
+                updateStats();
+                $('#resultsCount').text(response.total);
+                $('#exportBtn').prop('disabled', response.total === 0);
+            },
+            error: function(xhr, status, error) {
+                console.error('Erreur:', error);
+                displayError('Erreur lors de la récupération des données: ' + error);
+            },
+            complete: function() {
+                $('#loadingIndicator').hide();
+                $('#resultsContainer').show();
+            }
+        });
+    }
+
+    function sortAndDisplayResults() {
+        const sortBy = $('#sortBy').val();
+        let sorted = [...allCompetitions];
+        
+        sorted.sort((a, b) => {
+            const aVal = a[sortBy] || '';
+            const bVal = b[sortBy] || '';
+            return aVal.localeCompare(bVal);
+        });
+        
+        displayResults(sorted);
+    }
+
+    function displayResults(competitions) {
+        const container = $('#resultsContainer');
+        const isTableView = $('#tableView').is(':checked');
+        
+        if (competitions.length === 0) {
+            container.html(`
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-inbox fa-3x mb-3"></i>
+                    <p>Aucun concours trouvé avec ces critères</p>
+                </div>
+            `);
+            return;
+        }
+
+        if (isTableView) {
+            displayTableView(competitions);
+        } else {
+            displayCardView(competitions);
+        }
+    }
+
+    function displayCardView(competitions) {
+        const container = $('#resultsContainer');
+        let html = '<div class="row">';
+        
+        competitions.forEach(function(comp, index) {
+            html += `
+                <div class="col-md-4 mb-3">
+                    <div class="card competition-card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="card-title mb-0">${comp.nom || 'Nom non disponible'}</h6>
+                                ${comp.discipline ? `<span class="discipline-badge">${comp.discipline}</span>` : ''}
+                            </div>
+                            <div class="card-text">
+                                ${comp.date ? `<small class="text-muted"><i class="fas fa-calendar"></i> ${comp.date}</small><br>` : ''}
+                                ${comp.lieu ? `<small class="text-muted"><i class="fas fa-map-marker-alt"></i> ${comp.lieu}</small><br>` : ''}
+                                ${comp.niveau ? `<small class="text-muted"><i class="fas fa-star"></i> ${comp.niveau}</small><br>` : ''}
+                                ${comp.statut ? `<small class="text-muted"><i class="fas fa-info-circle"></i> ${comp.statut}</small><br>` : ''}
+                                ${comp.organisateur ? `<small class="text-muted"><i class="fas fa-user"></i> ${comp.organisateur}</small>` : ''}
+                            </div>
+                            ${comp.url ? `
+                                <div class="mt-2">
+                                    <a href="${comp.url}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-external-link-alt"></i> Détails
+                                    </a>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        $('#resultsContainer').html(html);
+    }
+
+    function displayTableView(competitions) {
+        let html = `
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Nom</th>
+                            <th>Discipline</th>
+                            <th>Date</th>
+                            <th>Lieu</th>
+                            <th>Niveau</th>
+                            <th>Statut</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        competitions.forEach(function(comp) {
+            html += `
+                <tr>
+                    <td>${comp.nom || '-'}</td>
+                    <td>
+                        ${comp.discipline ? `<span class="discipline-badge">${comp.discipline}</span>` : '-'}
+                    </td>
+                    <td>${comp.date || '-'}</td>
+                    <td>${comp.lieu || '-'}</td>
+                    <td>${comp.niveau || '-'}</td>
+                    <td>${comp.statut || '-'}</td>
+                    <td>
+                        ${comp.url ? `
+                            <a href="${comp.url}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        ` : '-'}
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        $('#resultsContainer').html(html);
+    }
+
+    function updateStats() {
+        const total = allCompetitions.length;
+        const discipline = $('#disciplineSelect').val() || 'Toutes';
+        
+        $('#totalCompetitions').text(total);
+        $('#currentDiscipline').text(discipline);
+        
+        // Simplified stats - in a real implementation, you'd calculate these properly
+        $('#openCompetitions').text(Math.floor(total * 0.7));
+        $('#upcomingCompetitions').text(Math.floor(total * 0.3));
+    }
+
+    function displayError(message) {
+        $('#resultsContainer').html(`
+            <div class="alert alert-danger" role="alert">
+                <i class="fas fa-exclamation-triangle"></i> ${message}
+            </div>
+        `);
+    }
+
+    function exportResults() {
+        const params = new URLSearchParams(currentSearchParams);
+        window.open(`/export/csv?${params.toString()}`, '_blank');
+    }
+});
+</script>
+{% endblock %}

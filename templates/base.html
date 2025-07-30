@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}FFE Competition Search{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .navbar-brand {
+            font-weight: bold;
+            color: #2c5b2d !important;
+        }
+        
+        .navbar {
+            background: linear-gradient(135deg, #2c5b2d 0%, #4a7c4e 100%);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .card {
+            border: none;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease-in-out;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #2c5b2d 0%, #4a7c4e 100%);
+            border: none;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #1e3f20 0%, #3a6340 100%);
+        }
+        
+        .competition-card {
+            border-left: 4px solid #2c5b2d;
+        }
+        
+        .discipline-badge {
+            background-color: #2c5b2d;
+            color: white;
+            font-size: 0.8em;
+            padding: 0.25em 0.5em;
+            border-radius: 0.25rem;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .loading .spinner-border {
+            color: #2c5b2d;
+        }
+        
+        .footer {
+            background-color: #2c5b2d;
+            color: white;
+            padding: 2rem 0;
+            margin-top: 3rem;
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-horse"></i> FFE Competitions
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">
+                            <i class="fas fa-home"></i> Accueil
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/search">
+                            <i class="fas fa-search"></i> Recherche Avancée
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container my-4">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-8">
+                    <h6>À propos</h6>
+                    <p class="small">
+                        Interface de recherche pour les compétitions équestres FFE. 
+                        Données extraites de <a href="https://ffecompet.ffe.com" target="_blank" class="text-light">ffecompet.ffe.com</a>.
+                    </p>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <h6>Disciplines Équestres</h6>
+                    <div class="small">
+                        <span class="discipline-badge me-1">E</span> Endurance<br>
+                        <span class="discipline-badge me-1">D</span> Dressage<br>
+                        <span class="discipline-badge me-1">CSO</span> Saut d'Obstacles<br>
+                        <span class="discipline-badge me-1">CCE</span> Complet
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
