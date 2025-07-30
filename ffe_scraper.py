@@ -21,25 +21,10 @@ class FFEScraper:
         """
         url = f"{self.base_url}/concours"
         
-        # Parameters for the search
-        params = {
-            'page': page,
-            'limit': 50  # Number of results per page
-        }
-        
-        # Add filters if provided
-        if filters:
-            params.update(filters)
-        
         try:
-            response = self.session.get(url, params=params)
+            response = self.session.get(url)
             response.raise_for_status()
             
-            # Try to extract JSON data if it's an AJAX response
-            if 'application/json' in response.headers.get('content-type', ''):
-                return response.json()
-            
-            # Otherwise parse HTML
             soup = BeautifulSoup(response.content, 'html.parser')
             return self._parse_competition_html(soup)
             
@@ -49,157 +34,152 @@ class FFEScraper:
     
     def _parse_competition_html(self, soup):
         """
-        Parse HTML content to extract competition information
+        Parse HTML content to extract competition information from select options
         """
         competitions = []
         
-        # Look for competition containers - these might be in tables or divs
-        competition_elements = soup.find_all(['tr', 'div'], class_=re.compile(r'competition|concours|event', re.I))
+        # Rechercher le select qui contient les compétitions
+        select_element = soup.find('select')
+        if not select_element:
+            print("Aucun élément select trouvé")
+            return competitions
+            
+        options = select_element.find_all('option')
+        print(f"Trouvé {len(options)} options dans le select")
         
-        if not competition_elements:
-            # Fallback: look for table rows that might contain competition data
-            tables = soup.find_all('table')
-            for table in tables:
-                rows = table.find_all('tr')[1:]  # Skip header row
-                for row in rows:
-                    comp_data = self._extract_competition_from_row(row)
-                    if comp_data:
-                        competitions.append(comp_data)
-        else:
-            for element in competition_elements:
-                comp_data = self._extract_competition_from_element(element)
-                if comp_data:
-                    competitions.append(comp_data)
+        for option in options:
+            value = option.get('value', '')
+            text = option.get_text(strip=True)
+            
+            # Ignorer les options vides ou sans valeur
+            if not value or not text or value == "":
+                continue
+                
+            competition = self._parse_competition_text(text, value)
+            if competition:
+                competitions.append(competition)
         
         return competitions
     
-    def _extract_competition_from_row(self, row):
+    def _parse_competition_text(self, text, value):
         """
-        Extract competition data from a table row
+        Parse competition text to extract structured information
         """
-        cells = row.find_all(['td', 'th'])
-        if len(cells) < 3:  # Need at least some basic data
-            return None
-            
         try:
             competition = {
-                'nom': '',
+                'id': value,
+                'nom': text,
                 'discipline': '',
                 'niveau': '',
                 'date': '',
                 'lieu': '',
                 'organisateur': '',
                 'statut': '',
-                'url': ''
+                'url': f"{self.base_url}/concours/{value}" if value else ''
             }
             
-            # Try to extract text from cells
-            cell_texts = [cell.get_text(strip=True) for cell in cells]
+            # Extraire la discipline depuis le texte
+            # Chercher les codes de discipline courants
+            discipline_patterns = {
+                'E': r'\(EN\)|Endurance',
+                'D': r'\(DR\)|Dressage',
+                'CSO': r'\(SO\)|Saut.*Obstacles',
+                'CCE': r'\(CE\)|Complet',
+                'HU': r'\(HU\)|Hunter',
+                'AT': r'\(AT\)|Attelage',
+                'VO': r'\(VO\)|Voltige',
+                'WE': r'\(WE\)|Western',
+                'PR': r'\(PR\)|Polo',
+                'TREC': r'TREC',
+            }
             
-            # Basic mapping - this will need adjustment based on actual HTML structure
-            if len(cell_texts) >= 1:
-                competition['nom'] = cell_texts[0]
-            if len(cell_texts) >= 2:
-                competition['date'] = cell_texts[1]
-            if len(cell_texts) >= 3:
-                competition['lieu'] = cell_texts[2]
-            if len(cell_texts) >= 4:
-                competition['discipline'] = cell_texts[3]
-            if len(cell_texts) >= 5:
-                competition['niveau'] = cell_texts[4]
-                
-            # Look for links
-            link = row.find('a')
-            if link and link.get('href'):
-                competition['url'] = urljoin(self.base_url, link.get('href'))
-                
+            for discipline, pattern in discipline_patterns.items():
+                if re.search(pattern, text, re.IGNORECASE):
+                    competition['discipline'] = discipline
+                    break
+            
+            # Extraire le niveau (Amateur, Pro, Elite, etc.)
+            niveau_patterns = [
+                r'Amateur|Am\s*\d*',
+                r'Pro|Professional', 
+                r'Elite',
+                r'Préparatoire',
+                r'Formation',
+                r'Enseignant',
+                r'Jeune|Junior',
+                r'Cadet|Benjamin',
+                r'Senior',
+                r'Poney'
+            ]
+            
+            for pattern in niveau_patterns:
+                match = re.search(pattern, text, re.IGNORECASE)
+                if match:
+                    competition['niveau'] = match.group(0)
+                    break
+            
+            # Extraire des informations sur la hauteur pour CSO
+            height_match = re.search(r'\(([0-9]+[.,][0-9]+)\s*m?\)', text)
+            if height_match:
+                height = height_match.group(1).replace(',', '.')
+                if competition['discipline'] == 'CSO' or 'SO' in text:
+                    competition['niveau'] += f" ({height}m)"
+            
+            # Nettoyer le nom pour enlever les codes techniques
+            nom_clean = re.sub(r'\([A-Z]{2}\)$', '', text).strip()
+            nom_clean = re.sub(r'\s+', ' ', nom_clean)
+            competition['nom'] = nom_clean
+            
             return competition
             
         except Exception as e:
-            print(f"Erreur lors de l'extraction des données de ligne: {e}")
-            return None
-    
-    def _extract_competition_from_element(self, element):
-        """
-        Extract competition data from a generic element
-        """
-        try:
-            competition = {
-                'nom': '',
-                'discipline': '',
-                'niveau': '',
-                'date': '',
-                'lieu': '',
-                'organisateur': '',
-                'statut': '',
-                'url': ''
-            }
-            
-            # Extract text content
-            text = element.get_text(strip=True)
-            
-            # Look for common patterns
-            competition['nom'] = text
-            
-            # Look for links
-            link = element.find('a')
-            if link and link.get('href'):
-                competition['url'] = urljoin(self.base_url, link.get('href'))
-                
-            return competition
-            
-        except Exception as e:
-            print(f"Erreur lors de l'extraction des données d'élément: {e}")
+            print(f"Erreur lors de l'analyse du texte '{text}': {e}")
             return None
     
     def search_competitions_by_discipline(self, discipline):
         """
         Search competitions filtered by discipline (E, D, CSO, etc.)
         """
-        all_competitions = []
-        page = 1
+        all_competitions = self.get_competitions_data()
         
-        while True:
-            competitions = self.get_competitions_data(page=page)
-            if not competitions:
-                break
-                
-            # Filter by discipline
-            filtered = [comp for comp in competitions 
-                       if discipline.upper() in comp.get('discipline', '').upper()]
-            all_competitions.extend(filtered)
+        # Normaliser la discipline recherchée
+        discipline_mapping = {
+            'E': ['E', 'EN', 'Endurance'],
+            'D': ['D', 'DR', 'Dressage'], 
+            'CSO': ['CSO', 'SO', 'Saut'],
+            'CCE': ['CCE', 'CE', 'Complet'],
+            'HU': ['HU', 'Hunter'],
+            'AT': ['AT', 'Attelage'],
+            'VO': ['VO', 'Voltige'],
+            'WE': ['WE', 'Western'],
+            'TREC': ['TREC'],
+        }
+        
+        search_terms = discipline_mapping.get(discipline.upper(), [discipline.upper()])
+        
+        filtered = []
+        for comp in all_competitions:
+            comp_discipline = comp.get('discipline', '').upper()
+            comp_text = comp.get('nom', '').upper()
             
-            # Check if we need to continue pagination
-            if len(competitions) < 50:  # Less than full page
-                break
-                
-            page += 1
-            time.sleep(1)  # Be respectful to the server
+            # Vérifier si la discipline correspond
+            for term in search_terms:
+                if (comp_discipline == term or 
+                    term in comp_discipline or 
+                    term in comp_text):
+                    filtered.append(comp)
+                    break
         
-        return all_competitions
+        return filtered
     
     def get_all_competitions(self, max_pages=10):
         """
-        Get all competitions with pagination
+        Get all competitions (for this site, it's all in one page)
         """
-        all_competitions = []
-        
-        for page in range(1, max_pages + 1):
-            print(f"Récupération page {page}...")
-            competitions = self.get_competitions_data(page=page)
-            
-            if not competitions:
-                break
-                
-            all_competitions.extend(competitions)
-            
-            # Stop if we got less than a full page
-            if len(competitions) < 50:
-                break
-                
-            time.sleep(1)  # Be respectful to the server
-        
-        return all_competitions
+        print("Récupération de toutes les compétitions...")
+        competitions = self.get_competitions_data()
+        print(f"Total récupéré: {len(competitions)} compétitions")
+        return competitions
     
     def save_to_csv(self, competitions, filename=None):
         """
@@ -218,21 +198,35 @@ class FFEScraper:
         """
         Extract list of available disciplines from the website
         """
-        # Common equestrian disciplines
+        # Disciplines équestres françaises courantes
         disciplines = [
-            'E',      # Endurance
+            'E',      # Endurance  
             'D',      # Dressage
             'CSO',    # Concours de Saut d'Obstacles
-            'CCE',    # Concours Complet d'Equitation
+            'CCE',    # Concours Complet d'Équitation
+            'HU',     # Hunter
+            'AT',     # Attelage
+            'VO',     # Voltige
+            'WE',     # Western
             'TREC',   # Techniques de Randonnée Équestre de Compétition
-            'PTV',    # Pony-Trot-Voltige
-            'ATT',    # Attelage
-            'VOL',    # Voltige
-            'EE',     # Équitation Éthologique
-            'POLO',   # Polo
-            'HORSE',  # Horse-Ball
+            'PR',     # Polo/Para
         ]
         return disciplines
+    
+    def get_competition_stats(self):
+        """
+        Get statistics about competitions by discipline
+        """
+        competitions = self.get_all_competitions()
+        stats = {}
+        
+        for comp in competitions:
+            discipline = comp.get('discipline', 'Autre')
+            if discipline not in stats:
+                stats[discipline] = 0
+            stats[discipline] += 1
+            
+        return stats
 
 def main():
     """
@@ -240,23 +234,39 @@ def main():
     """
     scraper = FFEScraper()
     
-    print("🐎 FFE Competition Scraper")
-    print("=" * 40)
+    print("🐎 FFE Competition Scraper - Version améliorée")
+    print("=" * 50)
     
     # Get sample data
     print("Récupération des données de concours...")
-    competitions = scraper.get_all_competitions(max_pages=3)
+    competitions = scraper.get_all_competitions()
     
     if competitions:
         print(f"✅ {len(competitions)} concours récupérés")
+        
+        # Afficher les statistiques par discipline
+        stats = scraper.get_competition_stats()
+        print(f"\n📊 Répartition par discipline:")
+        for discipline, count in sorted(stats.items()):
+            print(f"   - {discipline}: {count} compétitions")
         
         # Save to CSV
         filename = scraper.save_to_csv(competitions)
         
         # Show sample data
-        print("\n📋 Exemple de données:")
-        for i, comp in enumerate(competitions[:5]):
-            print(f"{i+1}. {comp.get('nom', 'N/A')} - {comp.get('discipline', 'N/A')} - {comp.get('date', 'N/A')}")
+        print("\n📋 Exemples de données:")
+        for i, comp in enumerate(competitions[:10]):
+            nom = comp.get('nom', 'N/A')[:50] + "..." if len(comp.get('nom', '')) > 50 else comp.get('nom', 'N/A')
+            print(f"{i+1}. {nom} - {comp.get('discipline', 'N/A')} - {comp.get('niveau', 'N/A')}")
+            
+        # Test recherche par discipline
+        print(f"\n🔍 Test recherche discipline 'E' (Endurance):")
+        endurance = scraper.search_competitions_by_discipline('E')
+        print(f"   Trouvé {len(endurance)} compétitions d'endurance")
+        
+        if endurance:
+            for i, comp in enumerate(endurance[:3]):
+                print(f"   {i+1}. {comp.get('nom', 'N/A')}")
     else:
         print("❌ Aucun concours trouvé")
 
