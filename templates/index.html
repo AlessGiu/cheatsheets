@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block title %}FFE Competitions - Recherche de Concours Équestres{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-12">
+        <!-- Header -->
+        <div class="text-center mb-5">
+            <h1 class="display-4">
+                <i class="fas fa-horse text-success"></i>
+                Recherche de Concours FFE
+            </h1>
+            <p class="lead text-muted">
+                Trouvez et filtrez les compétitions équestres par discipline
+            </p>
+        </div>
+
+        <!-- Search Form -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form id="searchForm">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="disciplineSelect" class="form-label">
+                                <i class="fas fa-trophy"></i> Discipline
+                            </label>
+                            <select class="form-select" id="disciplineSelect" name="discipline">
+                                <option value="">Toutes les disciplines</option>
+                                {% for discipline in disciplines %}
+                                <option value="{{ discipline }}">{{ discipline }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="searchInput" class="form-label">
+                                <i class="fas fa-search"></i> Recherche
+                            </label>
+                            <input type="text" class="form-control" id="searchInput" name="search" 
+                                   placeholder="Nom du concours, lieu, organisateur...">
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search"></i> Rechercher
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Quick Discipline Filters -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <h6 class="card-title">
+                    <i class="fas fa-filter"></i> Filtres Rapides
+                </h6>
+                <div class="btn-group flex-wrap" role="group">
+                    <button type="button" class="btn btn-outline-success btn-sm filter-btn" data-discipline="">
+                        Toutes
+                    </button>
+                    {% for discipline in disciplines %}
+                    <button type="button" class="btn btn-outline-success btn-sm filter-btn" data-discipline="{{ discipline }}">
+                        {{ discipline }}
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-list"></i> Résultats
+                    <span id="resultsCount" class="badge bg-secondary">0</span>
+                </h5>
+                <div>
+                    <button id="exportBtn" class="btn btn-outline-success btn-sm" disabled>
+                        <i class="fas fa-download"></i> Exporter CSV
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Loading indicator -->
+                <div id="loadingIndicator" class="loading" style="display: none;">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Chargement...</span>
+                    </div>
+                    <p class="mt-2">Récupération des données...</p>
+                </div>
+
+                <!-- Results container -->
+                <div id="resultsContainer">
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-search fa-3x mb-3"></i>
+                        <p>Utilisez les filtres ci-dessus pour rechercher des compétitions</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    let currentSearchParams = {};
+
+    // Search form submission
+    $('#searchForm').on('submit', function(e) {
+        e.preventDefault();
+        searchCompetitions();
+    });
+
+    // Quick filter buttons
+    $('.filter-btn').on('click', function() {
+        const discipline = $(this).data('discipline');
+        $('#disciplineSelect').val(discipline);
+        $('.filter-btn').removeClass('active');
+        $(this).addClass('active');
+        searchCompetitions();
+    });
+
+    // Export button
+    $('#exportBtn').on('click', function() {
+        exportResults();
+    });
+
+    function searchCompetitions() {
+        const discipline = $('#disciplineSelect').val();
+        const searchTerm = $('#searchInput').val();
+
+        currentSearchParams = {
+            discipline: discipline,
+            search: searchTerm
+        };
+
+        // Show loading
+        $('#loadingIndicator').show();
+        $('#resultsContainer').hide();
+        $('#exportBtn').prop('disabled', true);
+
+        // Make API call
+        $.ajax({
+            url: '/api/competitions',
+            method: 'GET',
+            data: currentSearchParams,
+            success: function(response) {
+                displayResults(response.competitions);
+                $('#resultsCount').text(response.total);
+                $('#exportBtn').prop('disabled', response.total === 0);
+            },
+            error: function(xhr, status, error) {
+                console.error('Erreur:', error);
+                displayError('Erreur lors de la récupération des données: ' + error);
+            },
+            complete: function() {
+                $('#loadingIndicator').hide();
+                $('#resultsContainer').show();
+            }
+        });
+    }
+
+    function displayResults(competitions) {
+        const container = $('#resultsContainer');
+        
+        if (competitions.length === 0) {
+            container.html(`
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-inbox fa-3x mb-3"></i>
+                    <p>Aucun concours trouvé avec ces critères</p>
+                </div>
+            `);
+            return;
+        }
+
+        let html = '<div class="row">';
+        competitions.forEach(function(comp, index) {
+            html += `
+                <div class="col-md-6 mb-3">
+                    <div class="card competition-card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="card-title mb-0">${comp.nom || 'Nom non disponible'}</h6>
+                                ${comp.discipline ? `<span class="discipline-badge">${comp.discipline}</span>` : ''}
+                            </div>
+                            <div class="card-text">
+                                ${comp.date ? `<small class="text-muted"><i class="fas fa-calendar"></i> ${comp.date}</small><br>` : ''}
+                                ${comp.lieu ? `<small class="text-muted"><i class="fas fa-map-marker-alt"></i> ${comp.lieu}</small><br>` : ''}
+                                ${comp.niveau ? `<small class="text-muted"><i class="fas fa-star"></i> ${comp.niveau}</small><br>` : ''}
+                                ${comp.organisateur ? `<small class="text-muted"><i class="fas fa-user"></i> ${comp.organisateur}</small>` : ''}
+                            </div>
+                            ${comp.url ? `
+                                <div class="mt-2">
+                                    <a href="${comp.url}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-external-link-alt"></i> Voir détails
+                                    </a>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        container.html(html);
+    }
+
+    function displayError(message) {
+        $('#resultsContainer').html(`
+            <div class="alert alert-danger" role="alert">
+                <i class="fas fa-exclamation-triangle"></i> ${message}
+            </div>
+        `);
+    }
+
+    function exportResults() {
+        const params = new URLSearchParams(currentSearchParams);
+        window.open(`/export/csv?${params.toString()}`, '_blank');
+    }
+});
+</script>
+{% endblock %}

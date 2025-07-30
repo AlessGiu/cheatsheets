@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Erreur serveur - FFE Competitions{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 text-center">
+        <div class="card">
+            <div class="card-body">
+                <h1 class="display-1 text-danger">500</h1>
+                <h3 class="mb-3">Erreur serveur</h3>
+                <p class="text-muted mb-4">
+                    Une erreur interne s'est produite. Veuillez réessayer dans quelques instants.
+                </p>
+                <div class="alert alert-info" role="alert">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Problème possible :</strong> 
+                    Le site FFE peut être temporairement indisponible ou la connexion internet est limitée.
+                </div>
+                <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                    <a href="/" class="btn btn-primary">
+                        <i class="fas fa-home"></i> Retour à l'accueil
+                    </a>
+                    <button onclick="location.reload()" class="btn btn-outline-secondary">
+                        <i class="fas fa-redo"></i> Réessayer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
